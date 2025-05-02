@@ -2,21 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WebXR AR - Place Cube</title>
+  <title>WebXR AR - Cube or Circle</title>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-    #enter-ar {
+    #ui {
       position: absolute;
       top: 20px;
       left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+    }
+    button {
       padding: 10px 20px;
       font-size: 16px;
-      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <button id="enter-ar">Enter AR</button>
+  <div id="ui">
+    <button id="enter-ar">Enter AR</button>
+    <button id="place-cube" style="display:none;">Place Cube</button>
+    <button id="place-circle" style="display:none;">Place Circle</button>
+  </div>
 
   <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.152.2';
@@ -25,12 +34,15 @@
     let hitTestSource = null;
     let referenceSpace = null;
     let modelPlaced = false;
+    let currentShape = null;
 
-    const startButton = document.getElementById('enter-ar');
+    const enterBtn = document.getElementById('enter-ar');
+    const cubeBtn = document.getElementById('place-cube');
+    const circleBtn = document.getElementById('place-circle');
 
     initScene();
 
-    startButton.addEventListener('click', async () => {
+    enterBtn.addEventListener('click', async () => {
       const session = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'local-floor']
       });
@@ -49,7 +61,13 @@
       session.addEventListener('end', () => {
         hitTestSource = null;
         modelPlaced = false;
+        currentShape = null;
+        cubeBtn.style.display = 'none';
+        circleBtn.style.display = 'none';
       });
+
+      cubeBtn.style.display = 'block';
+      circleBtn.style.display = 'block';
 
       renderer.setAnimationLoop((timestamp, frame) => {
         if (frame) {
@@ -67,6 +85,16 @@
       });
     });
 
+    cubeBtn.addEventListener('click', () => {
+      currentShape = 'cube';
+      modelPlaced = false;
+    });
+
+    circleBtn.addEventListener('click', () => {
+      currentShape = 'circle';
+      modelPlaced = false;
+    });
+
     function initScene() {
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera();
@@ -80,24 +108,34 @@
       scene.add(light);
 
       // Reticle
-      const geometry = new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2);
-      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-      reticle = new THREE.Mesh(geometry, material);
+      const ringGeo = new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      reticle = new THREE.Mesh(ringGeo, ringMat);
       reticle.matrixAutoUpdate = false;
       reticle.visible = false;
       scene.add(reticle);
     }
 
     function onSelect() {
-      if (reticle.visible && !modelPlaced) {
+      if (!reticle.visible || modelPlaced || !currentShape) return;
+
+      let mesh;
+
+      if (currentShape === 'cube') {
         const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-        const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const cube = new THREE.Mesh(geometry, material);
-        cube.position.setFromMatrixPosition(reticle.matrix);
-        cube.quaternion.setFromRotationMatrix(reticle.matrix);
-        scene.add(cube);
-        modelPlaced = true;
+        const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
+        mesh = new THREE.Mesh(geometry, material);
+      } else if (currentShape === 'circle') {
+        const geometry = new THREE.CircleGeometry(0.15, 32);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff8800, side: THREE.DoubleSide });
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotateX(-Math.PI / 2); // Face upward
       }
+
+      mesh.position.setFromMatrixPosition(reticle.matrix);
+      mesh.quaternion.setFromRotationMatrix(reticle.matrix);
+      scene.add(mesh);
+      modelPlaced = true;
     }
   </script>
 </body>
