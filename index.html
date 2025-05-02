@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WebXR AR - Cube or Circle</title>
+  <title>WebXR AR - Dog or Cat</title>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     #ui {
@@ -23,12 +23,13 @@
 <body>
   <div id="ui">
     <button id="enter-ar">Enter AR</button>
-    <button id="place-cube" style="display:none;">Place Cube</button>
-    <button id="place-circle" style="display:none;">Place Circle</button>
+    <button id="place-dog" style="display:none;">Place Dog</button>
+    <button id="place-cat" style="display:none;">Place Cat</button>
   </div>
 
   <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.152.2';
+    import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
 
     let scene, camera, renderer, controller, reticle;
     let hitTestSource = null;
@@ -37,8 +38,8 @@
     let currentShape = null;
 
     const enterBtn = document.getElementById('enter-ar');
-    const cubeBtn = document.getElementById('place-cube');
-    const circleBtn = document.getElementById('place-circle');
+    const dogBtn = document.getElementById('place-dog');
+    const catBtn = document.getElementById('place-cat');
     const ui = document.getElementById('ui');
 
     initScene();
@@ -65,13 +66,13 @@
         hitTestSource = null;
         modelPlaced = false;
         currentShape = null;
-        cubeBtn.style.display = 'none';
-        circleBtn.style.display = 'none';
+        dogBtn.style.display = 'none';
+        catBtn.style.display = 'none';
       });
 
       // Show buttons once AR session starts
-      cubeBtn.style.display = 'block';
-      circleBtn.style.display = 'block';
+      dogBtn.style.display = 'block';
+      catBtn.style.display = 'block';
 
       renderer.setAnimationLoop((timestamp, frame) => {
         if (frame) {
@@ -89,13 +90,13 @@
       });
     });
 
-    cubeBtn.addEventListener('click', () => {
-      currentShape = 'cube';
+    dogBtn.addEventListener('click', () => {
+      currentShape = 'dog';
       modelPlaced = false;
     });
 
-    circleBtn.addEventListener('click', () => {
-      currentShape = 'circle';
+    catBtn.addEventListener('click', () => {
+      currentShape = 'cat';
       modelPlaced = false;
     });
 
@@ -123,23 +124,26 @@
     function onSelect() {
       if (!reticle.visible || modelPlaced || !currentShape) return;
 
-      let mesh;
-
-      if (currentShape === 'cube') {
-        const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-        const material = new THREE.MeshStandardMaterial({ color: 0x00aaff });
-        mesh = new THREE.Mesh(geometry, material);
-      } else if (currentShape === 'circle') {
-        const geometry = new THREE.CircleGeometry(0.15, 32);
-        const material = new THREE.MeshStandardMaterial({ color: 0xff8800, side: THREE.DoubleSide });
-        mesh = new THREE.Mesh(geometry, material);
-        mesh.rotateX(-Math.PI / 2); // Face upward
+      const loader = new GLTFLoader();
+      let modelUrl = '';
+      
+      if (currentShape === 'dog') {
+        modelUrl = 'dog.glb';  // Replace with path to dog.glb
+      } else if (currentShape === 'cat') {
+        modelUrl = 'cat.glb';  // Replace with path to cat.glb
       }
 
-      mesh.position.setFromMatrixPosition(reticle.matrix);
-      mesh.quaternion.setFromRotationMatrix(reticle.matrix);
-      scene.add(mesh);
-      modelPlaced = true;
+      loader.load(modelUrl, (gltf) => {
+  const model = gltf.scene;
+  model.position.setFromMatrixPosition(reticle.matrix);
+  model.quaternion.setFromRotationMatrix(reticle.matrix);
+  model.scale.set(0.2, 0.2, 0.2); // scale down if needed
+  scene.add(model);
+  modelPlaced = true;
+}, undefined, (error) => {
+  alert('Error loading model: ' + error.message);
+});
+
     }
   </script>
 </body>
