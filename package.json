@@ -1,0 +1,24 @@
+{
+  "name": "new-folder-(5)",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chirahbhal312/webxrtrial.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chirahbhal312/webxrtrial/issues"
+  },
+  "homepage": "https://github.com/chirahbhal312/webxrtrial#readme",
+  "description": "",
+  "dependencies": {
+    "three": "^0.176.0",
+    "three-gltf-loader": "^1.111.0"
+  }
+}
