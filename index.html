@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WebXR AR - Dog or Cat</title>
+  <title>WebXR AR - Dog or Cat Model</title>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     #ui {
@@ -29,7 +29,7 @@
 
   <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.152.2';
-    import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
+    import { GLTFLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/GLTFLoader.js';
 
     let scene, camera, renderer, controller, reticle;
     let hitTestSource = null;
@@ -44,57 +44,64 @@
 
     initScene();
 
+    // Start AR session
     enterBtn.addEventListener('click', async () => {
-      const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['hit-test', 'local-floor'],
-        optionalFeatures: ['dom-overlay'],
-        domOverlay: { root: document.body }
-      });
+      try {
+        const session = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['hit-test', 'local-floor'],
+          optionalFeatures: ['dom-overlay'],
+          domOverlay: { root: document.body }
+        });
 
-      renderer.xr.enabled = true;
-      renderer.xr.setSession(session);
+        renderer.xr.enabled = true;
+        renderer.xr.setSession(session);
 
-      referenceSpace = await session.requestReferenceSpace('local-floor');
-      const viewerSpace = await session.requestReferenceSpace('viewer');
-      hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+        referenceSpace = await session.requestReferenceSpace('local-floor');
+        const viewerSpace = await session.requestReferenceSpace('viewer');
+        hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
 
-      controller = renderer.xr.getController(0);
-      controller.addEventListener('select', onSelect);
-      scene.add(controller);
+        controller = renderer.xr.getController(0);
+        controller.addEventListener('select', onSelect);
+        scene.add(controller);
 
-      session.addEventListener('end', () => {
-        hitTestSource = null;
-        modelPlaced = false;
-        currentShape = null;
-        dogBtn.style.display = 'none';
-        catBtn.style.display = 'none';
-      });
+        session.addEventListener('end', () => {
+          hitTestSource = null;
+          modelPlaced = false;
+          currentShape = null;
+          dogBtn.style.display = 'none';
+          catBtn.style.display = 'none';
+        });
 
-      // Show buttons once AR session starts
-      dogBtn.style.display = 'block';
-      catBtn.style.display = 'block';
+        // Show buttons once AR session starts
+        dogBtn.style.display = 'block';
+        catBtn.style.display = 'block';
 
-      renderer.setAnimationLoop((timestamp, frame) => {
-        if (frame) {
-          const hitTestResults = frame.getHitTestResults(hitTestSource);
-          if (hitTestResults.length > 0) {
-            const hit = hitTestResults[0].getPose(referenceSpace);
-            reticle.visible = true;
-            reticle.matrix.fromArray(hit.transform.matrix);
-          } else {
-            reticle.visible = false;
+        renderer.setAnimationLoop((timestamp, frame) => {
+          if (frame) {
+            const hitTestResults = frame.getHitTestResults(hitTestSource);
+            if (hitTestResults.length > 0) {
+              const hit = hitTestResults[0].getPose(referenceSpace);
+              reticle.visible = true;
+              reticle.matrix.fromArray(hit.transform.matrix);
+            } else {
+              reticle.visible = false;
+            }
           }
-        }
 
-        renderer.render(scene, camera);
-      });
+          renderer.render(scene, camera);
+        });
+      } catch (error) {
+        alert('Error starting AR session: ' + error.message);
+      }
     });
 
+    // Set current shape to dog model
     dogBtn.addEventListener('click', () => {
       currentShape = 'dog';
       modelPlaced = false;
     });
 
+    // Set current shape to cat model
     catBtn.addEventListener('click', () => {
       currentShape = 'cat';
       modelPlaced = false;
@@ -126,24 +133,27 @@
 
       const loader = new GLTFLoader();
       let modelUrl = '';
-      
+
       if (currentShape === 'dog') {
-        modelUrl = 'dog.glb';  // Replace with path to dog.glb
+        modelUrl = 'dog.glb';  // Replace with the path to dog.glb
       } else if (currentShape === 'cat') {
-        modelUrl = 'cat.glb';  // Replace with path to cat.glb
+        modelUrl = 'cat.glb';  // Replace with the path to cat.glb
       }
 
-      loader.load(modelUrl, (gltf) => {
-  const model = gltf.scene;
-  model.position.setFromMatrixPosition(reticle.matrix);
-  model.quaternion.setFromRotationMatrix(reticle.matrix);
-  model.scale.set(0.2, 0.2, 0.2); // scale down if needed
-  scene.add(model);
-  modelPlaced = true;
-}, undefined, (error) => {
-  alert('Error loading model: ' + error.message);
-});
-
+      try {
+        loader.load(modelUrl, (gltf) => {
+          const model = gltf.scene;
+          model.position.setFromMatrixPosition(reticle.matrix);
+          model.quaternion.setFromRotationMatrix(reticle.matrix);
+          model.scale.set(0.2, 0.2, 0.2); // scale down if needed
+          scene.add(model);
+          modelPlaced = true;
+        }, undefined, (error) => {
+          alert('Error loading model: ' + error.message);
+        });
+      } catch (error) {
+        alert('Error processing model: ' + error.message);
+      }
     }
   </script>
 </body>
