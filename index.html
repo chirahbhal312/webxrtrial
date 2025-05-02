@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WebXR AR - Dog or Cat Image</title>
+  <title>WebXR AR - Dog or Cat Model</title>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     #ui {
@@ -17,35 +17,19 @@
     button {
       padding: 10px 20px;
       font-size: 16px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
-    }
-    #status {
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      margin-top: 10px;
     }
   </style>
 </head>
 <body>
   <div id="ui">
+    <button id="enter-ar">Enter AR</button>
     <button id="place-dog" style="display:none;">Place Dog</button>
     <button id="place-cat" style="display:none;">Place Cat</button>
-    <div id="status" style="display:none;"></div>
   </div>
 
   <script type="module">
-    // Import Three.js from CDN to avoid path issues
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
+    import * as THREE from './node_modules/three/build/three.module.js';
+    import { GLTFLoader } from './node_modules/three-gltf-loader/index.js'; // Import from the three-gltf-loader module
 
     let scene, camera, renderer, controller, reticle;
     let hitTestSource = null;
@@ -53,48 +37,22 @@
     let modelPlaced = false;
     let currentShape = null;
 
+    const enterBtn = document.getElementById('enter-ar');
     const dogBtn = document.getElementById('place-dog');
     const catBtn = document.getElementById('place-cat');
-    const statusEl = document.getElementById('status');
+    const ui = document.getElementById('ui');
 
-    // Initialize scene and check WebXR support
     initScene();
-    checkXRSupport();
-
-    // Check if WebXR is supported and start AR session automatically
-    async function checkXRSupport() {
-      if (!navigator.xr) {
-        showAlert("WebXR is not supported on this browser.");
-        return;
-      }
-
-      try {
-        const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
-        if (!isSupported) {
-          showAlert("WebXR AR is not supported on this device/browser.");
-          return;
-        }
-        
-        // Automatically start AR session
-        startARSession();
-      } catch (error) {
-        showAlert("Error checking AR support: " + error.message);
-      }
-    }
 
     // Start AR session
-    async function startARSession() {
+    enterBtn.addEventListener('click', async () => {
       try {
-        showAlert("Starting AR session...");
-        
         const session = await navigator.xr.requestSession('immersive-ar', {
           requiredFeatures: ['hit-test', 'local-floor'],
           optionalFeatures: ['dom-overlay'],
           domOverlay: { root: document.body }
         });
 
-        showAlert("AR session started successfully!");
-        
         renderer.xr.enabled = true;
         renderer.xr.setSession(session);
 
@@ -107,7 +65,6 @@
         scene.add(controller);
 
         session.addEventListener('end', () => {
-          showAlert("AR session ended");
           hitTestSource = null;
           modelPlaced = false;
           currentShape = null;
@@ -134,24 +91,20 @@
           renderer.render(scene, camera);
         });
       } catch (error) {
-        showAlert("Error starting AR session: " + error.message);
+        alert('Error starting AR session: ' + error.message);
       }
-    }
+    });
 
     // Set current shape to dog model
     dogBtn.addEventListener('click', () => {
       currentShape = 'dog';
       modelPlaced = false;
-      showStatus("Dog image selected. Tap on a surface to place.");
-      showAlert("Dog image selected. Tap on a surface to place.");
     });
 
     // Set current shape to cat model
     catBtn.addEventListener('click', () => {
       currentShape = 'cat';
       modelPlaced = false;
-      showStatus("Cat image selected. Tap on a surface to place.");
-      showAlert("Cat image selected. Tap on a surface to place.");
     });
 
     function initScene() {
@@ -163,13 +116,8 @@
       renderer.setPixelRatio(window.devicePixelRatio);
       document.body.appendChild(renderer.domElement);
 
-      // Add lights
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-      scene.add(ambientLight);
-      
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      directionalLight.position.set(0, 10, 0);
-      scene.add(directionalLight);
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
 
       // Reticle
       const ringGeo = new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2);
@@ -178,63 +126,34 @@
       reticle.matrixAutoUpdate = false;
       reticle.visible = false;
       scene.add(reticle);
-
-      // Handle window resize
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
     }
 
     function onSelect() {
       if (!reticle.visible || modelPlaced || !currentShape) return;
 
-      const textureLoader = new THREE.TextureLoader();
-      let imageUrl = '';
+      const loader = new GLTFLoader();
+      let modelUrl = '';
 
       if (currentShape === 'dog') {
-        imageUrl = './dog.png';  // Replace with path to dog.png
+        modelUrl = 'dog.glb';  // Replace with the path to dog.glb
       } else if (currentShape === 'cat') {
-        imageUrl = './cat.png';  // Replace with path to cat.png
+        modelUrl = 'cat.glb';  // Replace with the path to cat.glb
       }
 
-      showStatus(`Loading ${currentShape} image...`);
-      showAlert(`Loading ${currentShape} image...`);
-
-      textureLoader.load(
-        imageUrl,
-        (texture) => {
-          // Create a plane geometry and apply the texture
-          const geometry = new THREE.PlaneGeometry(0.5, 0.5); // Adjust size if needed
-          const material = new THREE.MeshBasicMaterial({ map: texture });
-          const model = new THREE.Mesh(geometry, material);
-
+      try {
+        loader.load(modelUrl, (gltf) => {
+          const model = gltf.scene;
           model.position.setFromMatrixPosition(reticle.matrix);
           model.quaternion.setFromRotationMatrix(reticle.matrix);
+          model.scale.set(0.2, 0.2, 0.2); // scale down if needed
           scene.add(model);
           modelPlaced = true;
-          const successMsg = `${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} image placed successfully!`;
-          showStatus(successMsg);
-          showAlert(successMsg);
-        },
-        undefined,
-        (error) => {
-          const errorMsg = `Error loading ${currentShape} image: ${error.message}`;
-          showStatus(errorMsg);
-          showAlert(errorMsg);
-        }
-      );
-    }
-
-    function showStatus(message) {
-      statusEl.textContent = message;
-      statusEl.style.display = 'block';
-    }
-
-    function showAlert(message) {
-      // Use alert for critical messages during testing
-      alert(message);
+        }, undefined, (error) => {
+          alert('Error loading model: ' + error.message);
+        });
+      } catch (error) {
+        alert('Error processing model: ' + error.message);
+      }
     }
   </script>
 </body>
