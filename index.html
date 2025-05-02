@@ -39,12 +39,15 @@
     const enterBtn = document.getElementById('enter-ar');
     const cubeBtn = document.getElementById('place-cube');
     const circleBtn = document.getElementById('place-circle');
+    const ui = document.getElementById('ui');
 
     initScene();
 
     enterBtn.addEventListener('click', async () => {
       const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['hit-test', 'local-floor']
+        requiredFeatures: ['hit-test', 'local-floor'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: document.body }
       });
 
       renderer.xr.enabled = true;
@@ -66,6 +69,7 @@
         circleBtn.style.display = 'none';
       });
 
+      // Show buttons once AR session starts
       cubeBtn.style.display = 'block';
       circleBtn.style.display = 'block';
 
