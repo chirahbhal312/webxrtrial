@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WebXR AR - Dog or Cat Model</title>
+  <title>WebXR AR - Dog or Cat Image</title>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     #ui {
@@ -46,7 +46,6 @@
   <script type="module">
     // Import Three.js from CDN to avoid path issues
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
-    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
 
     let scene, camera, renderer, controller, reticle;
     let hitTestSource = null;
@@ -143,16 +142,16 @@
     dogBtn.addEventListener('click', () => {
       currentShape = 'dog';
       modelPlaced = false;
-      showStatus("Dog model selected. Tap on a surface to place.");
-      showAlert("Dog model selected. Tap on a surface to place.");
+      showStatus("Dog image selected. Tap on a surface to place.");
+      showAlert("Dog image selected. Tap on a surface to place.");
     });
 
     // Set current shape to cat model
     catBtn.addEventListener('click', () => {
       currentShape = 'cat';
       modelPlaced = false;
-      showStatus("Cat model selected. Tap on a surface to place.");
-      showAlert("Cat model selected. Tap on a surface to place.");
+      showStatus("Cat image selected. Tap on a surface to place.");
+      showAlert("Cat image selected. Tap on a surface to place.");
     });
 
     function initScene() {
@@ -191,48 +190,41 @@
     function onSelect() {
       if (!reticle.visible || modelPlaced || !currentShape) return;
 
-      const loader = new GLTFLoader();
-      let modelUrl = '';
+      const textureLoader = new THREE.TextureLoader();
+      let imageUrl = '';
 
       if (currentShape === 'dog') {
-        modelUrl = './dog.glb';  // Replace with the path to dog.glb
+        imageUrl = './dog.png';  // Replace with path to dog.png
       } else if (currentShape === 'cat') {
-        modelUrl = './cat.glb';  // Replace with the path to cat.glb
+        imageUrl = './cat.png';  // Replace with path to cat.png
       }
 
-      showStatus(`Loading ${currentShape} model...`);
-      showAlert(`Loading ${currentShape} model...`);
+      showStatus(`Loading ${currentShape} image...`);
+      showAlert(`Loading ${currentShape} image...`);
 
-      try {
-        loader.load(modelUrl, 
-          (gltf) => {
-            const model = gltf.scene;
-            model.position.setFromMatrixPosition(reticle.matrix);
-            model.quaternion.setFromRotationMatrix(reticle.matrix);
-            model.scale.set(0.2, 0.2, 0.2); // scale down if needed
-            scene.add(model);
-            modelPlaced = true;
-            const successMsg = `${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} model placed successfully!`;
-            showStatus(successMsg);
-            showAlert(successMsg);
-          }, 
-          (progress) => {
-            if (progress.total > 0) {
-              const percentComplete = Math.round((progress.loaded / progress.total) * 100);
-              showStatus(`Loading ${currentShape} model: ${percentComplete}%`);
-            }
-          },
-          (error) => {
-            const errorMsg = `Error loading ${currentShape} model: ${error.message}`;
-            showStatus(errorMsg);
-            showAlert(errorMsg);
-          }
-        );
-      } catch (error) {
-        const errorMsg = `Error processing ${currentShape} model: ${error.message}`;
-        showStatus(errorMsg);
-        showAlert(errorMsg);
-      }
+      textureLoader.load(
+        imageUrl,
+        (texture) => {
+          // Create a plane geometry and apply the texture
+          const geometry = new THREE.PlaneGeometry(0.5, 0.5); // Adjust size if needed
+          const material = new THREE.MeshBasicMaterial({ map: texture });
+          const model = new THREE.Mesh(geometry, material);
+
+          model.position.setFromMatrixPosition(reticle.matrix);
+          model.quaternion.setFromRotationMatrix(reticle.matrix);
+          scene.add(model);
+          modelPlaced = true;
+          const successMsg = `${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} image placed successfully!`;
+          showStatus(successMsg);
+          showAlert(successMsg);
+        },
+        undefined,
+        (error) => {
+          const errorMsg = `Error loading ${currentShape} image: ${error.message}`;
+          showStatus(errorMsg);
+          showAlert(errorMsg);
+        }
+      );
     }
 
     function showStatus(message) {
