@@ -13,6 +13,7 @@
   <button id="enter-ar">Enter AR</button>
   <script type="module">
     import * as THREE from 'https://cdn.skypack.dev/three@0.152.2';
+    import { GLTFLoader } from 'https://cdn.skypack.dev/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
 
     const button = document.getElementById('enter-ar');
 
@@ -20,6 +21,9 @@
     let xrSession, refSpace, viewerSpace, hitTestSource;
     let reticle;
     let controller;
+    let modelPlaced = false;   
+
+    const loader = new GLTFLoader();
 
     initThree();
 
@@ -70,12 +74,15 @@
     }
 
     function onSelect() {
-      if (reticle.visible) {
-        const boxGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-        const boxMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const box = new THREE.Mesh(boxGeo, boxMat);
-        box.position.setFromMatrixPosition(reticle.matrix);
-        scene.add(box);
+      if (!modelPlaced && reticle.visible) {
+        loader.load('./dog.glb', (gltf) => {
+          const model = gltf.scene;
+          model.position.setFromMatrixPosition(reticle.matrix);
+          model.quaternion.setFromRotationMatrix(reticle.matrix);
+          model.scale.set(0.2, 0.2, 0.2); // Adjust if needed
+          scene.add(model);
+          modelPlaced = true;
+        });
       }
     }
 
