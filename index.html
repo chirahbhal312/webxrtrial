@@ -38,7 +38,6 @@
 </head>
 <body>
   <div id="ui">
-    <button id="enter-ar">Enter AR</button>
     <button id="place-dog" style="display:none;">Place Dog</button>
     <button id="place-cat" style="display:none;">Place Cat</button>
     <div id="status" style="display:none;"></div>
@@ -55,38 +54,39 @@
     let modelPlaced = false;
     let currentShape = null;
 
-    const enterBtn = document.getElementById('enter-ar');
     const dogBtn = document.getElementById('place-dog');
     const catBtn = document.getElementById('place-cat');
     const statusEl = document.getElementById('status');
 
-    // Check if WebXR is supported
-    if (navigator.xr) {
-      navigator.xr.isSessionSupported('immersive-ar')
-        .then((supported) => {
-          if (supported) {
-            enterBtn.disabled = false;
-            showStatus("WebXR AR is supported! Click 'Enter AR' to start.");
-          } else {
-            enterBtn.disabled = true;
-            showStatus("WebXR AR is not supported on this device/browser.");
-          }
-        })
-        .catch(error => {
-          showStatus("Error checking AR support: " + error.message);
-          enterBtn.disabled = true;
-        });
-    } else {
-      showStatus("WebXR is not supported on this browser.");
-      enterBtn.disabled = true;
+    // Initialize scene and check WebXR support
+    initScene();
+    checkXRSupport();
+
+    // Check if WebXR is supported and start AR session automatically
+    async function checkXRSupport() {
+      if (!navigator.xr) {
+        showAlert("WebXR is not supported on this browser.");
+        return;
+      }
+
+      try {
+        const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
+        if (!isSupported) {
+          showAlert("WebXR AR is not supported on this device/browser.");
+          return;
+        }
+        
+        // Automatically start AR session
+        startARSession();
+      } catch (error) {
+        showAlert("Error checking AR support: " + error.message);
+      }
     }
 
-    initScene();
-
     // Start AR session
-    enterBtn.addEventListener('click', async () => {
+    async function startARSession() {
       try {
-        showStatus("Starting AR session...");
+        showAlert("Starting AR session...");
         
         const session = await navigator.xr.requestSession('immersive-ar', {
           requiredFeatures: ['hit-test', 'local-floor'],
@@ -94,7 +94,7 @@
           domOverlay: { root: document.body }
         });
 
-        showStatus("AR session started successfully!");
+        showAlert("AR session started successfully!");
         
         renderer.xr.enabled = true;
         renderer.xr.setSession(session);
@@ -108,7 +108,7 @@
         scene.add(controller);
 
         session.addEventListener('end', () => {
-          showStatus("AR session ended");
+          showAlert("AR session ended");
           hitTestSource = null;
           modelPlaced = false;
           currentShape = null;
@@ -135,16 +135,16 @@
           renderer.render(scene, camera);
         });
       } catch (error) {
-        showStatus("Error starting AR session: " + error.message);
-        console.error("AR session error:", error);
+        showAlert("Error starting AR session: " + error.message);
       }
-    });
+    }
 
     // Set current shape to dog model
     dogBtn.addEventListener('click', () => {
       currentShape = 'dog';
       modelPlaced = false;
       showStatus("Dog model selected. Tap on a surface to place.");
+      showAlert("Dog model selected. Tap on a surface to place.");
     });
 
     // Set current shape to cat model
@@ -152,6 +152,7 @@
       currentShape = 'cat';
       modelPlaced = false;
       showStatus("Cat model selected. Tap on a surface to place.");
+      showAlert("Cat model selected. Tap on a surface to place.");
     });
 
     function initScene() {
@@ -200,6 +201,7 @@
       }
 
       showStatus(`Loading ${currentShape} model...`);
+      showAlert(`Loading ${currentShape} model...`);
 
       try {
         loader.load(modelUrl, 
@@ -210,27 +212,37 @@
             model.scale.set(0.2, 0.2, 0.2); // scale down if needed
             scene.add(model);
             modelPlaced = true;
-            showStatus(`${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} model placed successfully!`);
+            const successMsg = `${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} model placed successfully!`;
+            showStatus(successMsg);
+            showAlert(successMsg);
           }, 
           (progress) => {
-            const percentComplete = Math.round((progress.loaded / progress.total) * 100);
-            showStatus(`Loading ${currentShape} model: ${percentComplete}%`);
+            if (progress.total > 0) {
+              const percentComplete = Math.round((progress.loaded / progress.total) * 100);
+              showStatus(`Loading ${currentShape} model: ${percentComplete}%`);
+            }
           },
           (error) => {
-            showStatus(`Error loading ${currentShape} model: ${error.message}`);
-            console.error("Model loading error:", error);
+            const errorMsg = `Error loading ${currentShape} model: ${error.message}`;
+            showStatus(errorMsg);
+            showAlert(errorMsg);
           }
         );
       } catch (error) {
-        showStatus(`Error processing ${currentShape} model: ${error.message}`);
-        console.error("Model processing error:", error);
+        const errorMsg = `Error processing ${currentShape} model: ${error.message}`;
+        showStatus(errorMsg);
+        showAlert(errorMsg);
       }
     }
 
     function showStatus(message) {
       statusEl.textContent = message;
       statusEl.style.display = 'block';
-      console.log(message);
+    }
+
+    function showAlert(message) {
+      // Use alert for critical messages during testing
+      alert(message);
     }
   </script>
 </body>
