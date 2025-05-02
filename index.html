@@ -17,6 +17,22 @@
     button {
       padding: 10px 20px;
       font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #status {
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -25,11 +41,13 @@
     <button id="enter-ar">Enter AR</button>
     <button id="place-dog" style="display:none;">Place Dog</button>
     <button id="place-cat" style="display:none;">Place Cat</button>
+    <div id="status" style="display:none;"></div>
   </div>
 
   <script type="module">
-    import * as THREE from './node_modules/three/build/three.module.js';
-    import { GLTFLoader } from './node_modules/three-gltf-loader/index.js'; // Import from the three-gltf-loader module
+    // Import Three.js from CDN to avoid path issues
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.176.0/build/three.module.js';
+    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
 
     let scene, camera, renderer, controller, reticle;
     let hitTestSource = null;
@@ -40,19 +58,44 @@
     const enterBtn = document.getElementById('enter-ar');
     const dogBtn = document.getElementById('place-dog');
     const catBtn = document.getElementById('place-cat');
-    const ui = document.getElementById('ui');
+    const statusEl = document.getElementById('status');
+
+    // Check if WebXR is supported
+    if (navigator.xr) {
+      navigator.xr.isSessionSupported('immersive-ar')
+        .then((supported) => {
+          if (supported) {
+            enterBtn.disabled = false;
+            showStatus("WebXR AR is supported! Click 'Enter AR' to start.");
+          } else {
+            enterBtn.disabled = true;
+            showStatus("WebXR AR is not supported on this device/browser.");
+          }
+        })
+        .catch(error => {
+          showStatus("Error checking AR support: " + error.message);
+          enterBtn.disabled = true;
+        });
+    } else {
+      showStatus("WebXR is not supported on this browser.");
+      enterBtn.disabled = true;
+    }
 
     initScene();
 
     // Start AR session
     enterBtn.addEventListener('click', async () => {
       try {
+        showStatus("Starting AR session...");
+        
         const session = await navigator.xr.requestSession('immersive-ar', {
           requiredFeatures: ['hit-test', 'local-floor'],
           optionalFeatures: ['dom-overlay'],
           domOverlay: { root: document.body }
         });
 
+        showStatus("AR session started successfully!");
+        
         renderer.xr.enabled = true;
         renderer.xr.setSession(session);
 
@@ -65,6 +108,7 @@
         scene.add(controller);
 
         session.addEventListener('end', () => {
+          showStatus("AR session ended");
           hitTestSource = null;
           modelPlaced = false;
           currentShape = null;
@@ -91,7 +135,8 @@
           renderer.render(scene, camera);
         });
       } catch (error) {
-        alert('Error starting AR session: ' + error.message);
+        showStatus("Error starting AR session: " + error.message);
+        console.error("AR session error:", error);
       }
     });
 
@@ -99,12 +144,14 @@
     dogBtn.addEventListener('click', () => {
       currentShape = 'dog';
       modelPlaced = false;
+      showStatus("Dog model selected. Tap on a surface to place.");
     });
 
     // Set current shape to cat model
     catBtn.addEventListener('click', () => {
       currentShape = 'cat';
       modelPlaced = false;
+      showStatus("Cat model selected. Tap on a surface to place.");
     });
 
     function initScene() {
@@ -116,8 +163,13 @@
       renderer.setPixelRatio(window.devicePixelRatio);
       document.body.appendChild(renderer.domElement);
 
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      scene.add(light);
+      // Add lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+      scene.add(ambientLight);
+      
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(0, 10, 0);
+      scene.add(directionalLight);
 
       // Reticle
       const ringGeo = new THREE.RingGeometry(0.08, 0.1, 32).rotateX(-Math.PI / 2);
@@ -126,6 +178,13 @@
       reticle.matrixAutoUpdate = false;
       reticle.visible = false;
       scene.add(reticle);
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
     }
 
     function onSelect() {
@@ -140,20 +199,38 @@
         modelUrl = './cat.glb';  // Replace with the path to cat.glb
       }
 
+      showStatus(`Loading ${currentShape} model...`);
+
       try {
-        loader.load(modelUrl, (gltf) => {
-          const model = gltf.scene;
-          model.position.setFromMatrixPosition(reticle.matrix);
-          model.quaternion.setFromRotationMatrix(reticle.matrix);
-          model.scale.set(0.2, 0.2, 0.2); // scale down if needed
-          scene.add(model);
-          modelPlaced = true;
-        }, undefined, (error) => {
-          alert('Error loading model: ' + error.message);
-        });
+        loader.load(modelUrl, 
+          (gltf) => {
+            const model = gltf.scene;
+            model.position.setFromMatrixPosition(reticle.matrix);
+            model.quaternion.setFromRotationMatrix(reticle.matrix);
+            model.scale.set(0.2, 0.2, 0.2); // scale down if needed
+            scene.add(model);
+            modelPlaced = true;
+            showStatus(`${currentShape.charAt(0).toUpperCase() + currentShape.slice(1)} model placed successfully!`);
+          }, 
+          (progress) => {
+            const percentComplete = Math.round((progress.loaded / progress.total) * 100);
+            showStatus(`Loading ${currentShape} model: ${percentComplete}%`);
+          },
+          (error) => {
+            showStatus(`Error loading ${currentShape} model: ${error.message}`);
+            console.error("Model loading error:", error);
+          }
+        );
       } catch (error) {
-        alert('Error processing model: ' + error.message);
+        showStatus(`Error processing ${currentShape} model: ${error.message}`);
+        console.error("Model processing error:", error);
       }
+    }
+
+    function showStatus(message) {
+      statusEl.textContent = message;
+      statusEl.style.display = 'block';
+      console.log(message);
     }
   </script>
 </body>
